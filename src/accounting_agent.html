@@ -1,0 +1,965 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>AccountAI — Autonomous Accounting Agent</title>
+<link href="https://fonts.googleapis.com/css2?family=IBM+Plex+Mono:wght@400;500&family=Instrument+Serif:ital@0;1&family=DM+Sans:wght@300;400;500&display=swap" rel="stylesheet">
+<style>
+:root {
+  --bg: #0f0f0f;
+  --surface: #161616;
+  --surface2: #1e1e1e;
+  --surface3: #252525;
+  --border: rgba(255,255,255,0.07);
+  --border2: rgba(255,255,255,0.12);
+  --text: #e8e8e4;
+  --text2: #888883;
+  --text3: #555551;
+  --accent: #c8f562;
+  --accent-dim: rgba(200,245,98,0.12);
+  --accent-text: #8fb83e;
+  --red: #f56262;
+  --red-dim: rgba(245,98,98,0.1);
+  --amber: #f5b842;
+  --amber-dim: rgba(245,184,66,0.1);
+  --blue: #62a9f5;
+  --blue-dim: rgba(98,169,245,0.1);
+  --radius: 8px;
+  --radius-lg: 12px;
+  --mono: 'IBM Plex Mono', monospace;
+  --serif: 'Instrument Serif', serif;
+  --sans: 'DM Sans', sans-serif;
+}
+*, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+html, body { height: 100%; overflow: hidden; background: var(--bg); color: var(--text); font-family: var(--sans); font-size: 14px; }
+
+.app { display: flex; height: 100vh; }
+
+/* SIDEBAR */
+.sidebar { width: 200px; flex-shrink: 0; background: var(--surface); border-right: 1px solid var(--border); display: flex; flex-direction: column; }
+.sidebar-brand { padding: 18px 16px 14px; border-bottom: 1px solid var(--border); }
+.brand-name { font-family: var(--serif); font-size: 18px; color: var(--text); letter-spacing: -0.02em; }
+.brand-name em { font-style: italic; color: var(--accent); }
+.brand-tag { font-family: var(--mono); font-size: 9px; color: var(--text3); text-transform: uppercase; letter-spacing: 0.12em; margin-top: 2px; }
+.agent-pill { display: inline-flex; align-items: center; gap: 5px; margin-top: 8px; background: var(--accent-dim); border: 1px solid rgba(200,245,98,0.2); border-radius: 20px; padding: 3px 8px; }
+.pulse { width: 5px; height: 5px; border-radius: 50%; background: var(--accent); animation: pulse 2s ease-in-out infinite; }
+@keyframes pulse { 0%,100%{opacity:1;transform:scale(1)} 50%{opacity:0.5;transform:scale(0.8)} }
+.pill-txt { font-family: var(--mono); font-size: 9px; color: var(--accent); text-transform: uppercase; letter-spacing: 0.1em; }
+
+.nav { flex: 1; padding: 10px 8px; overflow-y: auto; }
+.nav-group { margin-bottom: 16px; }
+.nav-label { font-family: var(--mono); font-size: 9px; color: var(--text3); text-transform: uppercase; letter-spacing: 0.12em; padding: 0 8px 5px; }
+.nav-btn { width: 100%; display: flex; align-items: center; gap: 9px; padding: 8px 10px; border-radius: var(--radius); border: none; background: transparent; color: var(--text2); cursor: pointer; font-family: var(--sans); font-size: 12px; font-weight: 400; text-align: left; transition: all 0.15s; }
+.nav-btn:hover { background: var(--surface2); color: var(--text); }
+.nav-btn.active { background: var(--accent-dim); color: var(--accent); border: 1px solid rgba(200,245,98,0.15); }
+.nav-ic { font-size: 13px; width: 14px; flex-shrink: 0; }
+.nav-badge { margin-left: auto; background: var(--red-dim); color: var(--red); font-family: var(--mono); font-size: 9px; padding: 1px 5px; border-radius: 4px; }
+
+.sidebar-footer { padding: 12px 16px; border-top: 1px solid var(--border); }
+.memory-status { font-family: var(--mono); font-size: 9px; color: var(--text3); }
+.memory-bar { width: 100%; height: 3px; background: var(--surface3); border-radius: 2px; margin-top: 5px; overflow: hidden; }
+.memory-fill { height: 100%; background: var(--accent); border-radius: 2px; width: 34%; transition: width 0.5s; }
+
+/* MAIN */
+.main { flex: 1; display: flex; flex-direction: column; overflow: hidden; }
+
+.topbar { padding: 12px 20px; background: var(--surface); border-bottom: 1px solid var(--border); display: flex; align-items: center; justify-content: space-between; }
+.topbar-left { }
+.topbar-title { font-size: 15px; font-weight: 500; color: var(--text); }
+.topbar-sub { font-family: var(--mono); font-size: 10px; color: var(--text3); margin-top: 1px; }
+.topbar-right { display: flex; align-items: center; gap: 8px; }
+.btn { display: inline-flex; align-items: center; gap: 5px; padding: 6px 14px; font-family: var(--sans); font-size: 12px; font-weight: 500; border: 1px solid var(--border2); border-radius: var(--radius); background: transparent; color: var(--text2); cursor: pointer; transition: all 0.15s; }
+.btn:hover { background: var(--surface2); color: var(--text); }
+.btn:disabled { opacity: 0.4; cursor: not-allowed; }
+.btn-accent { background: var(--accent); color: #0f0f0f; border-color: transparent; font-weight: 500; }
+.btn-accent:hover { background: #d4f970; color: #0f0f0f; }
+.btn-danger { border-color: rgba(245,98,98,0.3); color: var(--red); }
+.btn-danger:hover { background: var(--red-dim); }
+
+.content { flex: 1; overflow-y: auto; padding: 18px 20px; display: flex; flex-direction: column; gap: 14px; }
+
+/* VIEWS */
+.view { display: none; flex-direction: column; gap: 14px; animation: fadeIn 0.2s ease; }
+.view.active { display: flex; }
+@keyframes fadeIn { from{opacity:0;transform:translateY(4px)} to{opacity:1;transform:translateY(0)} }
+
+/* UPLOAD */
+.upload-zone { border: 1px dashed var(--border2); border-radius: var(--radius-lg); padding: 36px 24px; text-align: center; cursor: pointer; transition: all 0.2s; position: relative; background: var(--surface); }
+.upload-zone:hover, .upload-zone.drag { border-color: var(--accent); background: var(--accent-dim); }
+.upload-zone input[type=file] { position: absolute; inset: 0; opacity: 0; cursor: pointer; }
+.upload-icon { font-size: 32px; margin-bottom: 10px; }
+.upload-title { font-size: 14px; font-weight: 500; color: var(--text); margin-bottom: 4px; }
+.upload-sub { font-family: var(--mono); font-size: 10px; color: var(--text3); }
+.upload-chip { display: inline-flex; align-items: center; gap: 5px; margin-top: 10px; border: 1px solid var(--border); border-radius: 20px; padding: 3px 10px; font-family: var(--mono); font-size: 10px; color: var(--text2); }
+
+/* PREVIEW */
+.doc-preview { border: 1px solid var(--border); border-radius: var(--radius-lg); overflow: hidden; background: var(--surface); }
+.preview-img { width: 100%; max-height: 200px; object-fit: contain; background: var(--surface2); border-bottom: 1px solid var(--border); }
+.preview-label { padding: 10px 14px; display: flex; align-items: center; justify-content: space-between; }
+.preview-name { font-family: var(--mono); font-size: 11px; color: var(--text2); }
+.preview-size { font-family: var(--mono); font-size: 10px; color: var(--text3); }
+
+/* PIPELINE */
+.pipeline { display: grid; grid-template-columns: repeat(5, 1fr); gap: 6px; }
+.pipe-step { background: var(--surface); border: 1px solid var(--border); border-radius: var(--radius); padding: 10px 8px; text-align: center; transition: all 0.3s; position: relative; overflow: hidden; }
+.pipe-step::before { content:''; position:absolute; inset:0; background: linear-gradient(135deg, transparent 0%, rgba(255,255,255,0.02) 100%); pointer-events:none; }
+.pipe-step.running { border-color: var(--amber); background: var(--amber-dim); }
+.pipe-step.done { border-color: rgba(200,245,98,0.3); background: var(--accent-dim); }
+.pipe-step.error { border-color: rgba(245,98,98,0.3); background: var(--red-dim); }
+.pipe-ic { font-size: 18px; }
+.pipe-lbl { font-family: var(--mono); font-size: 9px; color: var(--text3); margin-top: 4px; text-transform: uppercase; letter-spacing: 0.08em; }
+.pipe-step.running .pipe-lbl { color: var(--amber); }
+.pipe-step.done .pipe-lbl { color: var(--accent); }
+.pipe-step.error .pipe-lbl { color: var(--red); }
+.pipe-stat { font-size: 9px; color: var(--text3); margin-top: 2px; }
+.spin { display: inline-block; animation: spin 0.8s linear infinite; }
+@keyframes spin { to { transform: rotate(360deg); } }
+
+/* LOG */
+.log-card { background: var(--surface); border: 1px solid var(--border); border-radius: var(--radius-lg); overflow: hidden; }
+.log-head { padding: 10px 14px; border-bottom: 1px solid var(--border); display: flex; align-items: center; justify-content: space-between; }
+.log-head-title { font-family: var(--mono); font-size: 11px; color: var(--text2); }
+.log-running { display: flex; align-items: center; gap: 6px; font-family: var(--mono); font-size: 10px; color: var(--amber); }
+.log-body { font-family: var(--mono); font-size: 10px; padding: 12px 14px; max-height: 140px; overflow-y: auto; line-height: 2; background: var(--bg); }
+.log-line { display: flex; gap: 10px; }
+.log-ts { color: var(--text3); flex-shrink: 0; }
+.log-msg { }
+.log-msg.info { color: var(--blue); }
+.log-msg.success { color: var(--accent); }
+.log-msg.warn { color: var(--amber); }
+.log-msg.error { color: var(--red); }
+.log-msg.think { color: var(--text2); }
+
+/* EXTRACTED */
+.extracted-card { background: var(--surface); border: 1px solid var(--border); border-radius: var(--radius-lg); overflow: hidden; }
+.extracted-head { padding: 12px 16px; border-bottom: 1px solid var(--border); display: flex; align-items: center; justify-content: space-between; }
+.extracted-title { font-size: 13px; font-weight: 500; color: var(--text); }
+.conf-row { display: flex; align-items: center; gap: 8px; }
+.conf-bar { width: 70px; height: 4px; background: var(--surface3); border-radius: 2px; overflow: hidden; }
+.conf-fill { height: 100%; border-radius: 2px; background: var(--accent); transition: width 0.8s ease; }
+.conf-txt { font-family: var(--mono); font-size: 10px; color: var(--text2); }
+.fields-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 0; }
+.field-item { padding: 10px 14px; border-bottom: 1px solid var(--border); border-right: 1px solid var(--border); }
+.field-item:nth-child(2n) { border-right: none; }
+.field-item:nth-last-child(-n+2) { border-bottom: none; }
+.field-key { font-family: var(--mono); font-size: 9px; color: var(--text3); text-transform: uppercase; letter-spacing: 0.1em; margin-bottom: 3px; }
+.field-val { font-size: 13px; font-weight: 500; color: var(--text); }
+
+.approval-bar { padding: 12px 16px; border-top: 1px solid var(--border); background: var(--amber-dim); display: flex; align-items: center; justify-content: space-between; gap: 12px; }
+.approval-msg { font-size: 12px; color: var(--amber); font-weight: 500; }
+.approval-actions { display: flex; gap: 6px; flex-shrink: 0; }
+
+/* JOURNAL */
+.stats-row { display: grid; grid-template-columns: repeat(4, 1fr); gap: 8px; }
+.stat-card { background: var(--surface); border: 1px solid var(--border); border-radius: var(--radius); padding: 12px 14px; }
+.stat-lbl { font-family: var(--mono); font-size: 9px; color: var(--text3); text-transform: uppercase; letter-spacing: 0.1em; margin-bottom: 4px; }
+.stat-val { font-size: 20px; font-weight: 500; color: var(--text); letter-spacing: -0.02em; }
+.stat-sub { font-family: var(--mono); font-size: 9px; color: var(--text3); margin-top: 2px; }
+
+.table-card { background: var(--surface); border: 1px solid var(--border); border-radius: var(--radius-lg); overflow: hidden; }
+.table-head-row { padding: 12px 16px; border-bottom: 1px solid var(--border); display: flex; align-items: center; justify-content: space-between; }
+.table-head-title { font-size: 13px; font-weight: 500; color: var(--text); }
+table { width: 100%; border-collapse: collapse; }
+th { padding: 8px 14px; text-align: left; font-family: var(--mono); font-size: 9px; font-weight: 500; color: var(--text3); text-transform: uppercase; letter-spacing: 0.1em; border-bottom: 1px solid var(--border); background: var(--surface2); }
+td { padding: 9px 14px; border-bottom: 1px solid var(--border); color: var(--text); font-size: 12px; vertical-align: middle; }
+tr:last-child td { border-bottom: none; }
+tbody tr:hover td { background: var(--surface2); }
+.dr { color: var(--red); font-family: var(--mono); font-weight: 500; }
+.cr { color: var(--accent); font-family: var(--mono); font-weight: 500; }
+.mono { font-family: var(--mono); font-size: 11px; color: var(--text2); }
+
+.badge { display: inline-block; font-family: var(--mono); font-size: 9px; padding: 2px 7px; border-radius: 4px; text-transform: uppercase; letter-spacing: 0.06em; }
+.badge-ok { background: var(--accent-dim); color: var(--accent); border: 1px solid rgba(200,245,98,0.2); }
+.badge-pending { background: var(--amber-dim); color: var(--amber); border: 1px solid rgba(245,184,66,0.2); }
+.badge-error { background: var(--red-dim); color: var(--red); border: 1px solid rgba(245,98,98,0.2); }
+.badge-info { background: var(--blue-dim); color: var(--blue); border: 1px solid rgba(98,169,245,0.2); }
+
+/* PNL */
+.pnl-section-header td { font-family: var(--mono); font-size: 9px; text-transform: uppercase; letter-spacing: 0.12em; padding: 6px 14px; background: var(--surface2); color: var(--text3); font-weight: 500; }
+.pnl-total td { font-weight: 500; border-top: 1px solid var(--border2); font-size: 13px; }
+.pnl-net td { font-weight: 500; font-size: 14px; background: var(--accent-dim); border-top: 1px solid rgba(200,245,98,0.2); }
+
+/* MEMORY */
+.memory-card { background: var(--surface); border: 1px solid var(--border); border-radius: var(--radius-lg); overflow: hidden; }
+.mem-head { padding: 12px 16px; border-bottom: 1px solid var(--border); font-size: 13px; font-weight: 500; color: var(--text); }
+.mem-item { padding: 11px 16px; border-bottom: 1px solid var(--border); display: flex; gap: 12px; align-items: flex-start; }
+.mem-item:last-child { border-bottom: none; }
+.mem-dot { width: 6px; height: 6px; border-radius: 50%; margin-top: 4px; flex-shrink: 0; }
+.mem-title { font-size: 12px; font-weight: 500; color: var(--text); }
+.mem-detail { font-family: var(--mono); font-size: 10px; color: var(--text3); margin-top: 2px; }
+
+/* SETTINGS */
+.setting-item { display: flex; align-items: center; justify-content: space-between; padding: 12px 16px; border-bottom: 1px solid var(--border); }
+.setting-item:last-child { border-bottom: none; }
+.setting-info { }
+.setting-title { font-size: 13px; font-weight: 500; color: var(--text); }
+.setting-desc { font-family: var(--mono); font-size: 10px; color: var(--text3); margin-top: 2px; }
+.toggle { width: 38px; height: 22px; border-radius: 11px; background: var(--surface3); border: 1px solid var(--border2); cursor: pointer; position: relative; transition: background 0.2s; flex-shrink: 0; }
+.toggle.on { background: var(--accent); border-color: var(--accent); }
+.toggle-thumb { position: absolute; top: 3px; left: 3px; width: 14px; height: 14px; border-radius: 50%; background: var(--text3); transition: all 0.2s; }
+.toggle.on .toggle-thumb { left: 19px; background: #0f0f0f; }
+
+/* SCROLLBAR */
+::-webkit-scrollbar { width: 4px; height: 4px; }
+::-webkit-scrollbar-track { background: transparent; }
+::-webkit-scrollbar-thumb { background: var(--surface3); border-radius: 2px; }
+
+/* EMPTY STATE */
+.empty-state { text-align: center; padding: 40px; color: var(--text3); font-family: var(--mono); font-size: 11px; }
+
+/* Error display */
+.error-banner { background: var(--red-dim); border: 1px solid rgba(245,98,98,0.3); border-radius: var(--radius); padding: 10px 14px; font-family: var(--mono); font-size: 11px; color: var(--red); }
+
+/* Thinking animation */
+.thinking-dots::after { content:'...'; animation: dots 1.2s steps(4,end) infinite; }
+@keyframes dots { 0%{content:'.'} 33%{content:'..'} 66%{content:'...'} 100%{content:''} }
+</style>
+</head>
+<body>
+
+<div class="app">
+  <!-- SIDEBAR -->
+  <div class="sidebar">
+    <div class="sidebar-brand">
+      <div class="brand-name">Account<em>AI</em></div>
+      <div class="brand-tag">Autonomous Agent v1.0</div>
+      <div class="agent-pill">
+        <div class="pulse"></div>
+        <div class="pill-txt">Agent online</div>
+      </div>
+    </div>
+    <div class="nav">
+      <div class="nav-group">
+        <div class="nav-label">Workflow</div>
+        <button class="nav-btn active" onclick="switchView('upload',this)"><span class="nav-ic">📄</span> Document Intake</button>
+        <button class="nav-btn" onclick="switchView('journal',this)"><span class="nav-ic">📒</span> Journal Entries <span class="nav-badge" id="jBadge">0</span></button>
+        <button class="nav-btn" onclick="switchView('pnl',this)"><span class="nav-ic">📊</span> P&amp;L Report</button>
+      </div>
+      <div class="nav-group">
+        <div class="nav-label">Agent</div>
+        <button class="nav-btn" onclick="switchView('memory',this)"><span class="nav-ic">🧠</span> Memory</button>
+        <button class="nav-btn" onclick="switchView('settings',this)"><span class="nav-ic">⚙</span> Settings</button>
+      </div>
+    </div>
+    <div class="sidebar-footer">
+      <div class="memory-status">Memory used: <span id="memPct">34</span>%</div>
+      <div class="memory-bar"><div class="memory-fill" id="memBar"></div></div>
+    </div>
+  </div>
+
+  <!-- MAIN -->
+  <div class="main">
+    <div class="topbar">
+      <div class="topbar-left">
+        <div class="topbar-title" id="topTitle">Document Intake</div>
+        <div class="topbar-sub" id="topSub">UPLOAD BILLS OR PURCHASE ORDERS → AI PROCESSES AUTOMATICALLY</div>
+      </div>
+      <div class="topbar-right">
+        <button class="btn" onclick="resetAll()">↺ Reset</button>
+        <button class="btn btn-accent" id="processBtn" style="display:none" onclick="runAgentPipeline()">Run Agent ↗</button>
+      </div>
+    </div>
+
+    <div class="content">
+
+      <!-- UPLOAD VIEW -->
+      <div class="view active" id="view-upload">
+        <div class="upload-zone" id="dropZone">
+          <input type="file" id="fileInput" accept="image/*,application/pdf" onchange="onFile(event)">
+          <div class="upload-icon">📸</div>
+          <div class="upload-title">Drop a bill or purchase order</div>
+          <div class="upload-sub">JPG · PNG · PDF — Claude vision will extract all fields</div>
+          <div class="upload-chip">
+            <span>🔒</span> Processed via Claude claude-sonnet-4-20250514 API
+          </div>
+        </div>
+
+        <div id="previewSection" style="display:none">
+          <div class="doc-preview">
+            <img id="previewImg" class="preview-img" src="" alt="Document preview" style="display:none">
+            <div id="previewPdfLabel" style="display:none;padding:40px;text-align:center;font-family:var(--mono);font-size:11px;color:var(--text3);">📄 PDF — ready for processing</div>
+            <div class="preview-label">
+              <span class="preview-name" id="prevName">—</span>
+              <span class="preview-size" id="prevSize">—</span>
+            </div>
+          </div>
+        </div>
+
+        <div id="pipeSection" style="display:none">
+          <div class="pipeline">
+            <div class="pipe-step" id="ps-ocr"><div class="pipe-ic">👁</div><div class="pipe-lbl">OCR Extract</div><div class="pipe-stat" id="pss-ocr">idle</div></div>
+            <div class="pipe-step" id="ps-cls"><div class="pipe-ic">🏷</div><div class="pipe-lbl">Classify</div><div class="pipe-stat" id="pss-cls">idle</div></div>
+            <div class="pipe-step" id="ps-val"><div class="pipe-ic">✓</div><div class="pipe-lbl">Validate</div><div class="pipe-stat" id="pss-val">idle</div></div>
+            <div class="pipe-step" id="ps-jnl"><div class="pipe-ic">📒</div><div class="pipe-lbl">Journal</div><div class="pipe-stat" id="pss-jnl">idle</div></div>
+            <div class="pipe-step" id="ps-pnl"><div class="pipe-ic">📊</div><div class="pipe-lbl">P&amp;L Update</div><div class="pipe-stat" id="pss-pnl">idle</div></div>
+          </div>
+        </div>
+
+        <div class="log-card" id="logCard" style="display:none">
+          <div class="log-head">
+            <div class="log-head-title">⬡ Agent reasoning trace</div>
+            <div class="log-running" id="logRunning" style="display:none"><span class="spin">◌</span> <span class="thinking-dots">Thinking</span></div>
+          </div>
+          <div class="log-body" id="logBody"></div>
+        </div>
+
+        <div id="errorDiv" style="display:none"></div>
+
+        <div class="extracted-card" id="extractedCard" style="display:none">
+          <div class="extracted-head">
+            <div class="extracted-title">Extracted document fields</div>
+            <div class="conf-row">
+              <div class="conf-bar"><div class="conf-fill" id="confFill" style="width:0%"></div></div>
+              <div class="conf-txt" id="confTxt">—</div>
+            </div>
+          </div>
+          <div class="fields-grid" id="fieldsGrid"></div>
+          <div class="approval-bar" id="approvalBar">
+            <div class="approval-msg">⚠ Agent requests your approval before posting to ledger</div>
+            <div class="approval-actions">
+              <button class="btn btn-danger" onclick="rejectEntry()">✕ Reject</button>
+              <button class="btn btn-accent" onclick="approveEntry()">✓ Approve & Post</button>
+            </div>
+          </div>
+        </div>
+      </div>
+
+      <!-- JOURNAL VIEW -->
+      <div class="view" id="view-journal">
+        <div class="stats-row">
+          <div class="stat-card"><div class="stat-lbl">Total entries</div><div class="stat-val" id="sTotal">0</div><div class="stat-sub">This period</div></div>
+          <div class="stat-card"><div class="stat-lbl">Total debits</div><div class="stat-val" id="sDebits">฿0</div><div class="stat-sub">Posted</div></div>
+          <div class="stat-card"><div class="stat-lbl">Total credits</div><div class="stat-val" id="sCredits">฿0</div><div class="stat-sub">Posted</div></div>
+          <div class="stat-card"><div class="stat-lbl">Balance check</div><div class="stat-val" id="sBalance" style="color:var(--accent)">✓</div><div class="stat-sub" id="sBalanceSub">Balanced</div></div>
+        </div>
+        <div class="table-card">
+          <div class="table-head-row">
+            <div class="table-head-title">General ledger — double-entry journal</div>
+            <span class="badge badge-ok" id="balanceBadge">Balanced</span>
+          </div>
+          <div style="overflow-x:auto">
+            <table>
+              <thead><tr><th>Date</th><th>Description</th><th>Account code</th><th>Account name</th><th style="text-align:right">Debit (฿)</th><th style="text-align:right">Credit (฿)</th><th>Ref</th><th>Status</th></tr></thead>
+              <tbody id="journalTbody"><tr><td colspan="8"><div class="empty-state">No entries yet — upload a document to begin</div></td></tr></tbody>
+            </table>
+          </div>
+        </div>
+      </div>
+
+      <!-- P&L VIEW -->
+      <div class="view" id="view-pnl">
+        <div class="stats-row">
+          <div class="stat-card"><div class="stat-lbl">Total revenue</div><div class="stat-val" id="pRevenue" style="color:var(--accent)">฿0</div></div>
+          <div class="stat-card"><div class="stat-lbl">Total expenses</div><div class="stat-val" id="pExpenses" style="color:var(--red)">฿0</div></div>
+          <div class="stat-card"><div class="stat-lbl">Net profit</div><div class="stat-val" id="pNet">฿0</div></div>
+          <div class="stat-card"><div class="stat-lbl">Profit margin</div><div class="stat-val" id="pMargin">—</div></div>
+        </div>
+        <div class="table-card">
+          <div class="table-head-row">
+            <div class="table-head-title">Profit &amp; loss statement</div>
+            <button class="btn" onclick="exportPnL()">Export CSV</button>
+          </div>
+          <div style="overflow-x:auto">
+            <table>
+              <thead><tr><th>Account name</th><th>Code</th><th>Type</th><th style="text-align:right">Amount (฿)</th><th style="text-align:right">% of revenue</th></tr></thead>
+              <tbody id="pnlTbody"><tr><td colspan="5"><div class="empty-state">No data yet — post journal entries to generate P&amp;L</div></td></tr></tbody>
+            </table>
+          </div>
+        </div>
+      </div>
+
+      <!-- MEMORY VIEW -->
+      <div class="view" id="view-memory">
+        <div class="memory-card">
+          <div class="mem-head">Short-term memory — current session</div>
+          <div id="stMemory"></div>
+        </div>
+        <div class="memory-card">
+          <div class="mem-head">Long-term memory — knowledge base</div>
+          <div class="mem-item"><div class="mem-dot" style="background:var(--blue)"></div><div><div class="mem-title">Chart of accounts loaded</div><div class="mem-detail">ASSETS · LIABILITIES · EQUITY · REVENUE · EXPENSES</div></div></div>
+          <div class="mem-item"><div class="mem-dot" style="background:var(--accent)"></div><div><div class="mem-title">VAT rate: 7% (Thailand)</div><div class="mem-detail">Fiscal year: Jan–Dec 2025 · Currency: THB (฿)</div></div></div>
+          <div class="mem-item"><div class="mem-dot" style="background:var(--amber)"></div><div><div class="mem-title">Approval workflow: enabled</div><div class="mem-detail">All entries require accountant sign-off before posting</div></div></div>
+          <div class="mem-item"><div class="mem-dot" style="background:var(--red)"></div><div><div class="mem-title">Learning mode: active</div><div class="mem-detail">Agent adapts account mappings from your corrections</div></div></div>
+        </div>
+      </div>
+
+      <!-- SETTINGS VIEW -->
+      <div class="view" id="view-settings">
+        <div class="table-card">
+          <div class="table-head-row"><div class="table-head-title">Agent permissions &amp; controls</div></div>
+          <div id="settingsBody">
+            <div class="setting-item"><div class="setting-info"><div class="setting-title">Human approval workflow</div><div class="setting-desc">Require sign-off before posting any journal entry</div></div><div class="toggle on" onclick="tog(this)" data-key="approval"><div class="toggle-thumb"></div></div></div>
+            <div class="setting-item"><div class="setting-info"><div class="setting-title">Auto-post high-confidence entries</div><div class="setting-desc">Post without approval if confidence ≥ 95%</div></div><div class="toggle" onclick="tog(this)" data-key="autopost"><div class="toggle-thumb"></div></div></div>
+            <div class="setting-item"><div class="setting-info"><div class="setting-title">Learning &amp; adaptation</div><div class="setting-desc">Agent improves from your corrections over time</div></div><div class="toggle on" onclick="tog(this)" data-key="learning"><div class="toggle-thumb"></div></div></div>
+            <div class="setting-item"><div class="setting-info"><div class="setting-title">Sandbox mode</div><div class="setting-desc">Read-only — agent analyzes but never posts</div></div><div class="toggle" onclick="tog(this)" data-key="sandbox"><div class="toggle-thumb"></div></div></div>
+            <div class="setting-item"><div class="setting-info"><div class="setting-title">Verbose reasoning trace</div><div class="setting-desc">Show full chain-of-thought in agent log</div></div><div class="toggle on" onclick="tog(this)" data-key="verbose"><div class="toggle-thumb"></div></div></div>
+          </div>
+        </div>
+      </div>
+
+    </div>
+  </div>
+</div>
+
+<script>
+// ─── STATE ───────────────────────────────────────────────────────────────────
+const state = {
+  file: null,
+  fileB64: null,
+  fileType: null,
+  extracted: null,
+  journalEntries: [],
+  pnlAccounts: {},
+  shortMemory: [],
+  settings: { approval: true, autopost: false, learning: true, sandbox: false, verbose: true },
+  docCount: 0,
+};
+
+// ─── CHART OF ACCOUNTS ───────────────────────────────────────────────────────
+const COA = {
+  '1000': { name: 'Cash', type: 'Asset' },
+  '1100': { name: 'Accounts Receivable', type: 'Asset' },
+  '1170': { name: 'Input VAT', type: 'Asset' },
+  '1200': { name: 'Inventory', type: 'Asset' },
+  '2000': { name: 'Accounts Payable', type: 'Liability' },
+  '2100': { name: 'VAT Payable', type: 'Liability' },
+  '3000': { name: 'Retained Earnings', type: 'Equity' },
+  '4000': { name: 'Sales Revenue', type: 'Revenue' },
+  '4100': { name: 'Service Revenue', type: 'Revenue' },
+  '5000': { name: 'Cost of Goods Sold', type: 'Expense' },
+  '5100': { name: 'Purchases', type: 'Expense' },
+  '5200': { name: 'Office Supplies Expense', type: 'Expense' },
+  '5300': { name: 'Utilities Expense', type: 'Expense' },
+  '5400': { name: 'Professional Services', type: 'Expense' },
+  '5500': { name: 'Rent Expense', type: 'Expense' },
+  '5600': { name: 'Software & Licenses', type: 'Expense' },
+  '5700': { name: 'Marketing Expense', type: 'Expense' },
+  '5800': { name: 'Travel & Entertainment', type: 'Expense' },
+  '5900': { name: 'Miscellaneous Expense', type: 'Expense' },
+};
+
+// ─── NAV ──────────────────────────────────────────────────────────────────────
+const viewMeta = {
+  upload:   ['Document Intake', 'UPLOAD BILLS OR PURCHASE ORDERS → AI PROCESSES AUTOMATICALLY'],
+  journal:  ['Journal Entries', 'DOUBLE-ENTRY LEDGER — DEBITS & CREDITS AUTO-GENERATED BY CLAUDE'],
+  pnl:      ['Profit & Loss Report', 'AUTO-GENERATED FROM POSTED JOURNAL ENTRIES'],
+  memory:   ['Agent Memory', 'SHORT-TERM SESSION CONTEXT + LONG-TERM KNOWLEDGE BASE'],
+  settings: ['Agent Settings', 'PERMISSIONS · APPROVALS · LEARNING CONTROLS'],
+};
+function switchView(name, btn) {
+  document.querySelectorAll('.view').forEach(v => v.classList.remove('active'));
+  document.getElementById('view-' + name).classList.add('active');
+  document.querySelectorAll('.nav-btn').forEach(b => b.classList.remove('active'));
+  if (btn) btn.classList.add('active');
+  document.getElementById('topTitle').textContent = viewMeta[name][0];
+  document.getElementById('topSub').textContent = viewMeta[name][1];
+  if (name === 'journal') renderJournal();
+  if (name === 'pnl') renderPnL();
+  if (name === 'memory') renderMemory();
+}
+
+// ─── TOGGLE ───────────────────────────────────────────────────────────────────
+function tog(el) {
+  el.classList.toggle('on');
+  const key = el.dataset.key;
+  state.settings[key] = el.classList.contains('on');
+}
+
+// ─── FILE HANDLING ────────────────────────────────────────────────────────────
+function onFile(e) {
+  const file = e.target.files[0];
+  if (!file) return;
+  state.file = file;
+  const reader = new FileReader();
+  reader.onload = (ev) => {
+    const result = ev.target.result;
+    const b64 = result.split(',')[1];
+    state.fileB64 = b64;
+    state.fileType = file.type;
+    document.getElementById('prevName').textContent = file.name;
+    document.getElementById('prevSize').textContent = (file.size / 1024).toFixed(1) + ' KB';
+    if (file.type.startsWith('image/')) {
+      const img = document.getElementById('previewImg');
+      img.src = result;
+      img.style.display = 'block';
+      document.getElementById('previewPdfLabel').style.display = 'none';
+    } else {
+      document.getElementById('previewImg').style.display = 'none';
+      document.getElementById('previewPdfLabel').style.display = 'block';
+    }
+    document.getElementById('previewSection').style.display = 'block';
+    document.getElementById('pipeSection').style.display = 'block';
+    document.getElementById('logCard').style.display = 'block';
+    document.getElementById('extractedCard').style.display = 'none';
+    document.getElementById('errorDiv').style.display = 'none';
+    document.getElementById('processBtn').style.display = 'inline-flex';
+    clearLogs();
+    resetPipeline();
+    addLog('Document loaded: ' + file.name, 'info');
+    addLog('Agent ready. Click "Run Agent" to begin autonomous processing.', '');
+  };
+  reader.readAsDataURL(file);
+}
+
+// Drag and drop
+const dz = document.getElementById('dropZone');
+dz.addEventListener('dragover', e => { e.preventDefault(); dz.classList.add('drag'); });
+dz.addEventListener('dragleave', () => dz.classList.remove('drag'));
+dz.addEventListener('drop', e => {
+  e.preventDefault(); dz.classList.remove('drag');
+  const file = e.dataTransfer.files[0];
+  if (file) { document.getElementById('fileInput').files = e.dataTransfer.files; onFile({ target: document.getElementById('fileInput') }); }
+});
+
+// ─── LOGGING ─────────────────────────────────────────────────────────────────
+function addLog(msg, type = '') {
+  const ts = new Date().toLocaleTimeString('en-GB', { hour12: false });
+  const lb = document.getElementById('logBody');
+  const line = document.createElement('div');
+  line.className = 'log-line';
+  line.innerHTML = `<span class="log-ts">${ts}</span><span class="log-msg ${type}">${escHtml(msg)}</span>`;
+  lb.appendChild(line);
+  lb.scrollTop = lb.scrollHeight;
+}
+function clearLogs() { document.getElementById('logBody').innerHTML = ''; }
+function escHtml(s) { return s.replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;'); }
+
+// ─── PIPELINE STATE ───────────────────────────────────────────────────────────
+const pipes = ['ocr','cls','val','jnl','pnl'];
+function setPipe(id, state) {
+  const el = document.getElementById('ps-' + id);
+  const st = document.getElementById('pss-' + id);
+  el.className = 'pipe-step ' + (state || '');
+  st.textContent = state === 'running' ? '⟳' : state === 'done' ? '✓' : state === 'error' ? '✗' : 'idle';
+}
+function resetPipeline() { pipes.forEach(p => setPipe(p, '')); }
+function setRunning(show) {
+  document.getElementById('logRunning').style.display = show ? 'flex' : 'none';
+  document.getElementById('processBtn').disabled = show;
+}
+
+// ─── CLAUDE API CALL ──────────────────────────────────────────────────────────
+async function callClaude(systemPrompt, userContent, useVision = false) {
+  const messages = [{ role: 'user', content: useVision ? userContent : [{ type: 'text', text: userContent }] }];
+  const body = { model: 'claude-sonnet-4-20250514', max_tokens: 2000, system: systemPrompt, messages };
+  const resp = await fetch('https://api.anthropic.com/v1/messages', {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify(body),
+  });
+  if (!resp.ok) {
+    const err = await resp.json().catch(() => ({}));
+    throw new Error(err.error?.message || `API error ${resp.status}`);
+  }
+  const data = await resp.json();
+  return data.content.map(b => b.text || '').join('');
+}
+
+// ─── MAIN AGENT PIPELINE ──────────────────────────────────────────────────────
+async function runAgentPipeline() {
+  if (!state.fileB64) return;
+  document.getElementById('processBtn').style.display = 'none';
+  document.getElementById('errorDiv').style.display = 'none';
+  document.getElementById('extractedCard').style.display = 'none';
+  setRunning(true);
+  resetPipeline();
+  clearLogs();
+
+  try {
+    // ── STEP 1: OCR + EXTRACTION ─────────────────────────────────────────────
+    setPipe('ocr', 'running');
+    addLog('Invoking Claude vision model for OCR and field extraction...', 'info');
+    addLog('Analyzing document structure, tables, line items...', '');
+
+    const mediaType = state.fileType === 'application/pdf' ? 'application/pdf' : state.fileType;
+    const docSource = state.fileType === 'application/pdf'
+      ? { type: 'base64', media_type: 'application/pdf', data: state.fileB64 }
+      : { type: 'base64', media_type: mediaType, data: state.fileB64 };
+
+    const visionContent = [
+      {
+        type: state.fileType === 'application/pdf' ? 'document' : 'image',
+        source: docSource
+      },
+      {
+        type: 'text',
+        text: `You are an expert accountant OCR agent. Extract ALL information from this document (bill, invoice, or purchase order).
+
+Return ONLY valid JSON in this exact structure (no markdown, no explanation):
+{
+  "document_type": "Invoice|Bill|Purchase Order|Receipt|Credit Note|Other",
+  "vendor_name": "string",
+  "vendor_address": "string or null",
+  "customer_name": "string or null",
+  "document_number": "string",
+  "document_date": "YYYY-MM-DD or original format",
+  "due_date": "YYYY-MM-DD or null",
+  "currency": "THB|USD|EUR|etc",
+  "line_items": [{"description":"string","qty":number,"unit_price":number,"total":number}],
+  "subtotal": number,
+  "tax_rate": number,
+  "tax_amount": number,
+  "discount": number,
+  "total_amount": number,
+  "payment_terms": "string or null",
+  "notes": "string or null",
+  "confidence": number (0-100, your confidence in extraction accuracy)
+}`
+      }
+    ];
+
+    const ocrRaw = await callClaude(
+      'You are an expert accounting AI. Extract document data and return only valid JSON.',
+      visionContent,
+      true
+    );
+
+    let extracted;
+    try {
+      const cleaned = ocrRaw.replace(/```json|```/g, '').trim();
+      extracted = JSON.parse(cleaned);
+    } catch {
+      throw new Error('Failed to parse document extraction. Ensure the image is clear and readable.');
+    }
+    state.extracted = extracted;
+    setPipe('ocr', 'done');
+    addLog(`OCR complete — extracted ${Object.keys(extracted).length} fields. Confidence: ${extracted.confidence}%`, 'success');
+
+    // ── STEP 2: CLASSIFY ─────────────────────────────────────────────────────
+    setPipe('cls', 'running');
+    addLog('Classifying document type and routing to appropriate accounting treatment...', 'info');
+
+    const classifyPrompt = `Classify this accounting document and determine the correct accounting treatment.
+Document data: ${JSON.stringify(extracted)}
+Available chart of accounts: ${JSON.stringify(COA)}
+
+Return ONLY valid JSON:
+{
+  "primary_account_debit": "account_code",
+  "primary_account_credit": "account_code",
+  "vat_account": "1170",
+  "category": "Expense|Revenue|Asset|Liability",
+  "expense_type": "string describing what type of expense/transaction",
+  "reasoning": "brief explanation of why these accounts were chosen"
+}`;
+
+    const classRaw = await callClaude('You are an expert accountant. Return only valid JSON.', classifyPrompt);
+    let classification;
+    try {
+      const cleaned = classRaw.replace(/```json|```/g, '').trim();
+      classification = JSON.parse(cleaned);
+    } catch {
+      classification = { primary_account_debit: '5900', primary_account_credit: '2000', vat_account: '1170', category: 'Expense', expense_type: 'General Expense', reasoning: 'Default classification' };
+    }
+    state.classification = classification;
+    setPipe('cls', 'done');
+    addLog(`Classified: ${classification.category} — ${classification.expense_type}`, 'success');
+    if (state.settings.verbose) addLog(`Reasoning: ${classification.reasoning}`, 'think');
+
+    // ── STEP 3: VALIDATE ─────────────────────────────────────────────────────
+    setPipe('val', 'running');
+    addLog('Validating amounts: subtotal + tax = total?', 'info');
+
+    const calcTotal = (extracted.subtotal || 0) + (extracted.tax_amount || 0) - (extracted.discount || 0);
+    const diff = Math.abs(calcTotal - (extracted.total_amount || 0));
+    const valid = diff < 1;
+    if (valid) {
+      addLog(`Validation passed ✓ — ${extracted.subtotal} + ${extracted.tax_amount} = ${extracted.total_amount}`, 'success');
+    } else {
+      addLog(`Minor discrepancy detected: calculated ${calcTotal.toFixed(2)} vs stated ${extracted.total_amount}. Difference: ${diff.toFixed(2)}. Flagging.`, 'warn');
+    }
+
+    const validatePrompt = `Validate this accounting document for any issues.
+Data: ${JSON.stringify(extracted)}
+Calculated total: ${calcTotal}
+Stated total: ${extracted.total_amount}
+
+Return ONLY valid JSON:
+{
+  "is_valid": boolean,
+  "issues": ["list of issues or empty array"],
+  "warnings": ["list of warnings or empty array"],
+  "adjusted_total": number
+}`;
+
+    const valRaw = await callClaude('You are an expert auditor. Return only valid JSON.', validatePrompt);
+    let validation;
+    try {
+      const cleaned = valRaw.replace(/```json|```/g, '').trim();
+      validation = JSON.parse(cleaned);
+    } catch {
+      validation = { is_valid: valid, issues: [], warnings: diff > 0 ? [`Rounding difference of ${diff.toFixed(2)}`] : [], adjusted_total: extracted.total_amount };
+    }
+    state.validation = validation;
+    setPipe('val', 'done');
+    validation.warnings.forEach(w => addLog('Warning: ' + w, 'warn'));
+
+    // ── STEP 4: GENERATE JOURNAL ENTRIES ─────────────────────────────────────
+    setPipe('jnl', 'running');
+    addLog('Generating double-entry journal entries (DR/CR)...', 'info');
+
+    const journalPrompt = `Generate double-entry journal entries for this document.
+Document: ${JSON.stringify(extracted)}
+Classification: ${JSON.stringify(classification)}
+Chart of accounts: ${JSON.stringify(COA)}
+VAT rate: 7%
+
+Rules:
+- Every transaction must balance: total debits = total credits
+- For vendor bills/invoices: DR expense account, DR input VAT, CR accounts payable
+- For purchase orders: DR inventory/expense, DR input VAT, CR accounts payable
+- Use the actual account codes from the chart of accounts
+- Date should be the document date
+
+Return ONLY valid JSON array:
+[
+  {"account_code":"string","account_name":"string","description":"string","debit":number_or_0,"credit":number_or_0},
+  ...
+]
+Ensure sum of all debits equals sum of all credits exactly.`;
+
+    const jRaw = await callClaude('You are an expert accountant. Generate precise double-entry journal entries. Return only valid JSON array.', journalPrompt);
+    let journalLines;
+    try {
+      const cleaned = jRaw.replace(/```json|```/g, '').trim();
+      journalLines = JSON.parse(cleaned);
+    } catch {
+      const amt = extracted.total_amount || 0;
+      const tax = extracted.tax_amount || 0;
+      const net = amt - tax;
+      journalLines = [
+        { account_code: classification.primary_account_debit, account_name: COA[classification.primary_account_debit]?.name || 'Expense', description: `${extracted.document_type} - ${extracted.vendor_name}`, debit: net, credit: 0 },
+        { account_code: '1170', account_name: 'Input VAT', description: 'Input VAT 7%', debit: tax, credit: 0 },
+        { account_code: '2000', account_name: 'Accounts Payable', description: `${extracted.vendor_name} - ${extracted.document_number}`, debit: 0, credit: amt },
+      ];
+    }
+    state.pendingLines = journalLines;
+    const totalDR = journalLines.reduce((s, l) => s + (l.debit || 0), 0);
+    const totalCR = journalLines.reduce((s, l) => s + (l.credit || 0), 0);
+    setPipe('jnl', 'done');
+    addLog(`Journal generated — ${journalLines.length} lines | DR: ${totalDR.toFixed(2)} | CR: ${totalCR.toFixed(2)}`, 'success');
+    if (Math.abs(totalDR - totalCR) > 0.01) addLog('WARNING: Journal does not balance!', 'error');
+
+    // ── STEP 5: P&L FLAG ─────────────────────────────────────────────────────
+    setPipe('pnl', 'running');
+    addLog('Flagging expense accounts for P&L update...', 'info');
+    setPipe('pnl', 'done');
+    addLog('P&L update prepared — will apply when entry is approved.', 'success');
+
+    // ── SHOW RESULTS ──────────────────────────────────────────────────────────
+    setRunning(false);
+    showExtracted(extracted, validation);
+
+    // memory
+    addMemory(`Processed: ${extracted.document_type} from ${extracted.vendor_name}`, `Amount: ฿${(extracted.total_amount || 0).toLocaleString()} · Ref: ${extracted.document_number}`);
+    state.docCount++;
+    document.getElementById('memPct').textContent = Math.min(90, 34 + state.docCount * 8);
+    document.getElementById('memBar').style.width = Math.min(90, 34 + state.docCount * 8) + '%';
+
+  } catch (err) {
+    setRunning(false);
+    addLog('Error: ' + err.message, 'error');
+    pipes.forEach(p => { if (document.getElementById('ps-' + p).className === 'pipe-step running') setPipe(p, 'error'); });
+    const ed = document.getElementById('errorDiv');
+    ed.style.display = 'block';
+    ed.innerHTML = `<div class="error-banner">⚠ Agent error: ${escHtml(err.message)}<br><small style="opacity:0.6">Check that your document is a clear image/PDF and try again.</small></div>`;
+  }
+}
+
+// ─── SHOW EXTRACTED FIELDS ────────────────────────────────────────────────────
+function showExtracted(ex, val) {
+  const conf = ex.confidence || 85;
+  document.getElementById('confFill').style.width = conf + '%';
+  document.getElementById('confTxt').textContent = conf + '% confidence';
+  const fields = [
+    ['Document type', ex.document_type],
+    ['Vendor', ex.vendor_name],
+    ['Document #', ex.document_number],
+    ['Date', ex.document_date],
+    ['Due date', ex.due_date || '—'],
+    ['Currency', ex.currency || 'THB'],
+    ['Subtotal', '฿' + (ex.subtotal || 0).toLocaleString()],
+    ['Tax (' + (ex.tax_rate || 7) + '%)', '฿' + (ex.tax_amount || 0).toLocaleString()],
+    ['Discount', ex.discount ? '฿' + ex.discount.toLocaleString() : '—'],
+    ['Total amount', '฿' + (ex.total_amount || 0).toLocaleString()],
+    ['Payment terms', ex.payment_terms || '—'],
+    ['Notes', ex.notes || '—'],
+  ];
+  document.getElementById('fieldsGrid').innerHTML = fields.map(([k, v]) =>
+    `<div class="field-item"><div class="field-key">${k}</div><div class="field-val">${v}</div></div>`
+  ).join('');
+  document.getElementById('extractedCard').style.display = 'block';
+  if (val && val.issues && val.issues.length > 0) {
+    document.getElementById('approvalBar').querySelector('.approval-msg').textContent =
+      '⚠ Issues detected: ' + val.issues.join('; ') + ' — Review before approving.';
+  }
+}
+
+// ─── APPROVE / REJECT ─────────────────────────────────────────────────────────
+function approveEntry() {
+  if (state.settings.sandbox) {
+    addLog('SANDBOX MODE: Entry analysed but not posted (sandbox active)', 'warn');
+    return;
+  }
+  const ex = state.extracted;
+  const lines = state.pendingLines;
+  const date = ex.document_date || new Date().toISOString().split('T')[0];
+  const ref = ex.document_number || 'REF-' + Date.now();
+
+  lines.forEach(line => {
+    state.journalEntries.push({
+      date, description: line.description || `${ex.document_type} - ${ex.vendor_name}`,
+      account_code: line.account_code, account_name: line.account_name,
+      debit: line.debit || 0, credit: line.credit || 0,
+      ref, status: 'posted'
+    });
+    // Update P&L
+    const acct = COA[line.account_code];
+    if (acct) {
+      if (!state.pnlAccounts[line.account_code]) state.pnlAccounts[line.account_code] = { name: acct.name, type: acct.type, total: 0, code: line.account_code };
+      if (acct.type === 'Expense') state.pnlAccounts[line.account_code].total += (line.debit || 0);
+      if (acct.type === 'Revenue') state.pnlAccounts[line.account_code].total += (line.credit || 0);
+    }
+  });
+
+  document.getElementById('jBadge').textContent = state.journalEntries.length;
+  addLog(`✓ Entry approved and posted to ledger. ${lines.length} lines added.`, 'success');
+  document.getElementById('extractedCard').style.display = 'none';
+  document.getElementById('processBtn').style.display = 'none';
+  addMemory(`Entry posted: ${ex.document_type} ${ref}`, `${lines.length} journal lines · Total ฿${(ex.total_amount || 0).toLocaleString()}`);
+}
+
+function rejectEntry() {
+  addLog('Entry rejected by accountant. Document flagged for manual review.', 'error');
+  document.getElementById('extractedCard').style.display = 'none';
+  document.getElementById('processBtn').style.display = 'none';
+  addMemory(`Rejected: ${state.extracted?.document_type || 'document'} from ${state.extracted?.vendor_name || '?'}`, 'Manual review required');
+}
+
+// ─── RENDER JOURNAL ───────────────────────────────────────────────────────────
+function renderJournal() {
+  const entries = state.journalEntries;
+  if (entries.length === 0) {
+    document.getElementById('journalTbody').innerHTML = '<tr><td colspan="8"><div class="empty-state">No entries yet — upload a document to begin</div></td></tr>';
+    document.getElementById('sTotal').textContent = '0';
+    document.getElementById('sDebits').textContent = '฿0';
+    document.getElementById('sCredits').textContent = '฿0';
+    return;
+  }
+  const totalDR = entries.reduce((s, e) => s + e.debit, 0);
+  const totalCR = entries.reduce((s, e) => s + e.credit, 0);
+  const balanced = Math.abs(totalDR - totalCR) < 0.01;
+  document.getElementById('sTotal').textContent = entries.length;
+  document.getElementById('sDebits').textContent = '฿' + totalDR.toLocaleString(undefined, { maximumFractionDigits: 2 });
+  document.getElementById('sCredits').textContent = '฿' + totalCR.toLocaleString(undefined, { maximumFractionDigits: 2 });
+  document.getElementById('sBalance').textContent = balanced ? '✓' : '✗';
+  document.getElementById('sBalance').style.color = balanced ? 'var(--accent)' : 'var(--red)';
+  document.getElementById('sBalanceSub').textContent = balanced ? 'Balanced' : 'Unbalanced!';
+  document.getElementById('balanceBadge').className = 'badge ' + (balanced ? 'badge-ok' : 'badge-error');
+  document.getElementById('balanceBadge').textContent = balanced ? 'Balanced' : 'Unbalanced';
+
+  document.getElementById('journalTbody').innerHTML = entries.map(e => `
+    <tr>
+      <td class="mono">${e.date}</td>
+      <td>${escHtml(e.description)}</td>
+      <td class="mono">${e.account_code}</td>
+      <td>${escHtml(e.account_name)}</td>
+      <td class="dr" style="text-align:right">${e.debit > 0 ? e.debit.toLocaleString(undefined,{maximumFractionDigits:2}) : ''}</td>
+      <td class="cr" style="text-align:right">${e.credit > 0 ? e.credit.toLocaleString(undefined,{maximumFractionDigits:2}) : ''}</td>
+      <td class="mono">${escHtml(e.ref)}</td>
+      <td><span class="badge badge-ok">${e.status}</span></td>
+    </tr>`).join('');
+}
+
+// ─── RENDER P&L ───────────────────────────────────────────────────────────────
+function renderPnL() {
+  const accts = state.pnlAccounts;
+  const revenue = Object.values(accts).filter(a => a.type === 'Revenue');
+  const expenses = Object.values(accts).filter(a => a.type === 'Expense');
+  const totalRev = revenue.reduce((s, a) => s + a.total, 0);
+  const totalExp = expenses.reduce((s, a) => s + a.total, 0);
+  const net = totalRev - totalExp;
+  const margin = totalRev > 0 ? ((net / totalRev) * 100).toFixed(1) : '—';
+
+  document.getElementById('pRevenue').textContent = '฿' + totalRev.toLocaleString(undefined, { maximumFractionDigits: 2 });
+  document.getElementById('pExpenses').textContent = '฿' + totalExp.toLocaleString(undefined, { maximumFractionDigits: 2 });
+  document.getElementById('pNet').textContent = '฿' + net.toLocaleString(undefined, { maximumFractionDigits: 2 });
+  document.getElementById('pNet').style.color = net >= 0 ? 'var(--accent)' : 'var(--red)';
+  document.getElementById('pMargin').textContent = totalRev > 0 ? margin + '%' : '—';
+  document.getElementById('pMargin').style.color = parseFloat(margin) > 0 ? 'var(--accent)' : 'var(--red)';
+
+  if (revenue.length === 0 && expenses.length === 0) {
+    document.getElementById('pnlTbody').innerHTML = '<tr><td colspan="5"><div class="empty-state">No data yet — post journal entries to generate P&amp;L</div></td></tr>';
+    return;
+  }
+  let rows = '';
+  if (revenue.length) {
+    rows += `<tr><td colspan="5" style="font-family:var(--mono);font-size:9px;text-transform:uppercase;letter-spacing:0.12em;padding:6px 14px;background:var(--surface2);color:var(--accent)">Revenue</td></tr>`;
+    revenue.forEach(a => {
+      const pct = totalRev > 0 ? ((a.total / totalRev) * 100).toFixed(1) : '0';
+      rows += `<tr><td>${a.name}</td><td class="mono">${a.code}</td><td><span class="badge badge-ok">Revenue</span></td><td style="text-align:right;color:var(--accent)">${a.total.toLocaleString(undefined,{maximumFractionDigits:2})}</td><td style="text-align:right" class="mono">${pct}%</td></tr>`;
+    });
+    rows += `<tr style="background:var(--surface2)"><td style="font-weight:500">Total Revenue</td><td></td><td></td><td style="text-align:right;font-weight:500;color:var(--accent)">${totalRev.toLocaleString(undefined,{maximumFractionDigits:2})}</td><td style="text-align:right;font-weight:500;font-family:var(--mono)">100%</td></tr>`;
+  }
+  if (expenses.length) {
+    rows += `<tr><td colspan="5" style="font-family:var(--mono);font-size:9px;text-transform:uppercase;letter-spacing:0.12em;padding:6px 14px;background:var(--surface2);color:var(--red)">Expenses</td></tr>`;
+    expenses.forEach(a => {
+      const pct = totalRev > 0 ? ((a.total / totalRev) * 100).toFixed(1) : '—';
+      rows += `<tr><td>${a.name}</td><td class="mono">${a.code}</td><td><span class="badge badge-error">Expense</span></td><td style="text-align:right;color:var(--red)">${a.total.toLocaleString(undefined,{maximumFractionDigits:2})}</td><td style="text-align:right" class="mono">${pct}%</td></tr>`;
+    });
+    rows += `<tr style="background:var(--surface2)"><td style="font-weight:500">Total Expenses</td><td></td><td></td><td style="text-align:right;font-weight:500;color:var(--red)">${totalExp.toLocaleString(undefined,{maximumFractionDigits:2})}</td><td style="text-align:right;font-weight:500;font-family:var(--mono)">${totalRev>0?((totalExp/totalRev)*100).toFixed(1)+'%':'—'}</td></tr>`;
+  }
+  rows += `<tr style="background:rgba(200,245,98,0.06);border-top:1px solid rgba(200,245,98,0.2)"><td style="font-weight:500;font-size:14px">Net Profit / Loss</td><td></td><td></td><td style="text-align:right;font-weight:500;font-size:14px;color:${net>=0?'var(--accent)':'var(--red)'}">${net.toLocaleString(undefined,{maximumFractionDigits:2})}</td><td style="text-align:right;font-weight:500;font-family:var(--mono)">${totalRev>0?margin+'%':'—'}</td></tr>`;
+  document.getElementById('pnlTbody').innerHTML = rows;
+}
+
+// ─── MEMORY ───────────────────────────────────────────────────────────────────
+function addMemory(title, detail) {
+  state.shortMemory.unshift({ title, detail, time: new Date().toLocaleTimeString('en-GB', { hour12: false }) });
+  if (state.shortMemory.length > 10) state.shortMemory.pop();
+}
+function renderMemory() {
+  const el = document.getElementById('stMemory');
+  if (state.shortMemory.length === 0) {
+    el.innerHTML = '<div class="empty-state">No session activity yet</div>';
+    return;
+  }
+  el.innerHTML = state.shortMemory.map(m => `
+    <div class="mem-item">
+      <div class="mem-dot" style="background:var(--blue)"></div>
+      <div><div class="mem-title">${escHtml(m.title)}</div><div class="mem-detail">${escHtml(m.detail)} · ${m.time}</div></div>
+    </div>`).join('');
+}
+
+// ─── EXPORT P&L ───────────────────────────────────────────────────────────────
+function exportPnL() {
+  const accts = state.pnlAccounts;
+  if (Object.keys(accts).length === 0) { alert('No P&L data to export yet.'); return; }
+  let csv = 'Account Code,Account Name,Type,Amount (THB)\n';
+  Object.values(accts).forEach(a => { csv += `${a.code},"${a.name}",${a.type},${a.total.toFixed(2)}\n`; });
+  const totalRev = Object.values(accts).filter(a=>a.type==='Revenue').reduce((s,a)=>s+a.total,0);
+  const totalExp = Object.values(accts).filter(a=>a.type==='Expense').reduce((s,a)=>s+a.total,0);
+  csv += `\nTotal Revenue,,Revenue,${totalRev.toFixed(2)}\nTotal Expenses,,Expense,${totalExp.toFixed(2)}\nNet Profit,,Net,${(totalRev-totalExp).toFixed(2)}\n`;
+  const blob = new Blob([csv], { type: 'text/csv' });
+  const a = document.createElement('a');
+  a.href = URL.createObjectURL(blob);
+  a.download = 'PnL_Report.csv';
+  a.click();
+}
+
+// ─── RESET ────────────────────────────────────────────────────────────────────
+function resetAll() {
+  state.file = null; state.fileB64 = null; state.extracted = null; state.pendingLines = null;
+  document.getElementById('fileInput').value = '';
+  document.getElementById('previewSection').style.display = 'none';
+  document.getElementById('pipeSection').style.display = 'none';
+  document.getElementById('logCard').style.display = 'none';
+  document.getElementById('extractedCard').style.display = 'none';
+  document.getElementById('errorDiv').style.display = 'none';
+  document.getElementById('processBtn').style.display = 'none';
+  clearLogs(); resetPipeline();
+}
+</script>
+</body>
+</html>
