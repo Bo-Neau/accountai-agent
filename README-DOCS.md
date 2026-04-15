@@ -25,7 +25,7 @@
 
 ## ✨ Features
 
-### 🧠 10 AI Agent Characteristics
+### 🧠 AI Agent Characteristics
 | # | Characteristic | Implementation |
 |---|---------------|----------------|
 | 1 | **Autonomy** | Decomposes "process this bill" into 5 sub-tasks automatically |
